@@ -656,23 +656,27 @@ class ImportarXlsxDespesasView(View):
         return redirect("/dashboard/?tab=despesas")
 
 import os
-from django.http import JsonResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotAllowed
 from django.contrib.auth import get_user_model
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 
-@require_http_methods(["GET", "POST"])
+@csrf_exempt
 def bootstrap_admin(request):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
     token = request.headers.get("X-ADMIN-TOKEN") or request.GET.get("token")
     if not token or token != os.getenv("ADMIN_BOOTSTRAP_TOKEN"):
         return HttpResponseForbidden("forbidden")
 
     User = get_user_model()
+
     username = os.getenv("ADMIN_USERNAME", "admin")
     email = os.getenv("ADMIN_EMAIL", "admin@example.com")
     password = os.getenv("ADMIN_PASSWORD")
 
     if not password:
-        return JsonResponse({"ok": False, "error": "Missing ADMIN_PASSWORD env var"}, status=500)
+        return JsonResponse({"ok": False, "error": "Missing ADMIN_PASSWORD"}, status=500)
 
     user, created = User.objects.get_or_create(
         username=username,
