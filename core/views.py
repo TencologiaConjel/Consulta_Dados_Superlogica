@@ -661,32 +661,32 @@ from django.contrib.auth import get_user_model
 from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
-def bootstrap_admin(request):
+def endpoint_criar_superuser(request):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
 
+    # token por header ou querystring
     token = request.headers.get("X-ADMIN-TOKEN") or request.GET.get("token")
-    if not token or token != os.getenv("ADMIN_BOOTSTRAP_TOKEN"):
+    if token != os.getenv("ADMIN_BOOTSTRAP_TOKEN"):
         return HttpResponseForbidden("forbidden")
 
     User = get_user_model()
 
-    username = os.getenv("ADMIN_USERNAME", "admin")
-    email = os.getenv("ADMIN_EMAIL", "admin@example.com")
+    email = (os.getenv("ADMIN_EMAIL") or "admin@admin.com").strip().lower()
     password = os.getenv("ADMIN_PASSWORD")
-
     if not password:
         return JsonResponse({"ok": False, "error": "Missing ADMIN_PASSWORD"}, status=500)
 
     user, created = User.objects.get_or_create(
-        username=username,
-        defaults={"email": email, "is_staff": True, "is_superuser": True},
+        email=email,
+        defaults={"is_staff": True, "is_superuser": True, "is_active": True},
     )
 
     user.is_staff = True
     user.is_superuser = True
-    user.email = email
+    user.is_active = True
     user.set_password(password)
     user.save()
 
-    return JsonResponse({"ok": True, "created": created, "username": username})
+    return JsonResponse({"ok": True, "created": created, "email": email})
+
