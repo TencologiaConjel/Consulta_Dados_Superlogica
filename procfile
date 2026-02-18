@@ -1,1 +1,1 @@
-web: gunicorn DadosSuperlogica.wsgi
+web: gunicorn DadosSuperlogica.wsgi:application --bind 0.0.0.0:${PORT:-8000}
