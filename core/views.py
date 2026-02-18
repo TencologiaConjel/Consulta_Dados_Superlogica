@@ -655,38 +655,5 @@ class ImportarXlsxDespesasView(View):
     def get(self, request):
         return redirect("/dashboard/?tab=despesas")
 
-import os
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotAllowed
-from django.contrib.auth import get_user_model
-from django.views.decorators.csrf import csrf_exempt
 
-@csrf_exempt
-def endpoint_criar_superuser(request):
-    if request.method != "POST":
-        return HttpResponseNotAllowed(["POST"])
-
-    # token por header ou querystring
-    token = request.headers.get("X-ADMIN-TOKEN") or request.GET.get("token")
-    if token != os.getenv("ADMIN_BOOTSTRAP_TOKEN"):
-        return HttpResponseForbidden("forbidden")
-
-    User = get_user_model()
-
-    email = (os.getenv("ADMIN_EMAIL") or "admin@admin.com").strip().lower()
-    password = os.getenv("ADMIN_PASSWORD")
-    if not password:
-        return JsonResponse({"ok": False, "error": "Missing ADMIN_PASSWORD"}, status=500)
-
-    user, created = User.objects.get_or_create(
-        email=email,
-        defaults={"is_staff": True, "is_superuser": True, "is_active": True},
-    )
-
-    user.is_staff = True
-    user.is_superuser = True
-    user.is_active = True
-    user.set_password(password)
-    user.save()
-
-    return JsonResponse({"ok": True, "created": created, "email": email})
 
