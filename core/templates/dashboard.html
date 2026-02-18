@@ -1,0 +1,898 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Receitas SuperLógica</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #3b82f6;
+            --secondary: #0ea5e9;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-light: #e2e8f0;
+            --gray: #94a3b8;
+            --text-dark: #1e293b;
+            --border: rgba(148, 163, 184, 0.2);
+            --card-bg: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f0f7ff 0%, #e0eafc 100%);
+            min-height: 100vh;
+            color: var(--text-dark);
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 30px rgba(37, 99, 235, 0.1);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .btn-import {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 0.6rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .btn-import:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-import.active {
+            background: linear-gradient(135deg, var(--success), #16a34a);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-title {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+        }
+
+        .page-subtitle {
+            color: var(--gray);
+            margin-bottom: 2rem;
+        }
+
+        .filters-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.08);
+        }
+
+        .filters-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--dark);
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .filter-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .filter-input, .filter-select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--gray-light);
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .filter-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .btn-filter {
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-apply {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-clear {
+            background: transparent;
+            border: 2px solid var(--gray-light);
+            color: var(--dark);
+        }
+
+        .table-section {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.08);
+            overflow: hidden;
+            max-height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .table-header {
+            padding: 1.5rem 2rem;
+            background: var(--light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .search-wrapper {
+            position: relative;
+        }
+
+        .search-input {
+            padding: 0.6rem 1rem 0.6rem 2.5rem;
+            border: 2px solid var(--gray-light);
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            color: var(--gray);
+            background: var(--light);
+            width: auto;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            width: auto;
+            white-space: nowrap;
+        }
+
+        tbody tr:hover {
+            background: var(--light);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-container {
+            background: white;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 2rem;
+        }
+
+        .upload-area {
+            border: 3px dashed var(--gray-light);
+            border-radius: 16px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            background: var(--light);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: #f0f7ff;
+        }
+
+        .upload-area input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-preview {
+            background: var(--light);
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .file-details {
+            flex: 1;
+        }
+
+        .file-remove {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: background 0.3s;
+        }
+
+        .file-remove:hover {
+            background: #fee2e2;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+
+        .btn-modal {
+            padding: 0.75rem 2rem;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 2px solid var(--gray-light);
+            color: var(--dark);
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+        }
+
+        .table-scroll {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .table-scroll::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        .table-scroll::-webkit-scrollbar-track {
+            background: var(--light);
+            border-radius: 10px;
+        }
+
+        .table-scroll::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 10px;
+            border: 2px solid var(--light);
+        }
+
+        .table-scroll::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+        }
+
+        .table-scroll table {
+            min-width: 1100px;
+        }
+
+        @media (max-width: 768px) {
+            .page-title {
+                font-size: 2rem;
+            }
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+            .table-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .table-header > div {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Modal de Importação de Receitas -->
+    <div id="importModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>📤 Importar Receitas</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form method="post" enctype="multipart/form-data" id="importForm" action="{% url 'importar_xlsx_receitas' %}">
+                    {% csrf_token %}
+                    <div class="upload-area" id="uploadArea">
+                        <div style="font-size: 4rem;">📁</div>
+                        <h3>Arraste e solte sua planilha aqui</h3>
+                        <p style="color: var(--gray);">ou clique para selecionar</p>
+                        <input type="file" name="arquivo" id="fileInput" accept=".xlsx,.xls" required>
+                        <p style="font-size: 0.85rem; color: var(--gray); margin-top: 1rem;">Formatos: XLSX, XLS (máx. 10MB)</p>
+                    </div>
+                    <div class="file-preview" id="filePreview" style="display: none;">
+                        <span style="font-size: 2rem;">📄</span>
+                        <div class="file-details">
+                            <div id="fileName" style="font-weight: 600;"></div>
+                            <div id="fileSize" style="font-size: 0.85rem; color: var(--gray);"></div>
+                        </div>
+                        <button type="button" class="file-remove" onclick="removeFile()">🗑️</button>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-modal btn-cancel" onclick="closeModal()">Cancelar</button>
+                        <button type="submit" class="btn-modal btn-submit">📤 Importar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Importação de Despesas -->
+    <div id="importModalDespesas" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>📥 Importar Despesas</h2>
+                <button class="modal-close" onclick="closeModalDespesas()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form method="post" enctype="multipart/form-data" id="importFormDespesas" action="{% url 'importar_xlsx_despesas' %}">
+                    {% csrf_token %}
+                    <div class="upload-area">
+                        <div style="font-size: 4rem;">📁</div>
+                        <h3>Arraste e solte sua planilha aqui</h3>
+                        <p style="color: var(--gray);">ou clique para selecionar</p>
+                        <input type="file" name="arquivo" id="fileInputDespesas" accept=".xlsx,.xls" required>
+                        <p style="font-size: 0.85rem; color: var(--gray); margin-top: 1rem;">Formatos: XLSX, XLS (máx. 10MB)</p>
+                    </div>
+                    <div class="file-preview" id="filePreviewDespesas" style="display: none;">
+                        <span style="font-size: 2rem;">📄</span>
+                        <div class="file-details">
+                            <div id="fileNameDespesas" style="font-weight: 600;"></div>
+                            <div id="fileSizeDespesas" style="font-size: 0.85rem; color: var(--gray);"></div>
+                        </div>
+                        <button type="button" class="file-remove" onclick="removeFileDespesas()">🗑️</button>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-modal btn-cancel" onclick="closeModalDespesas()">Cancelar</button>
+                        <button type="submit" class="btn-modal btn-submit">📥 Importar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="logo">SuperLógica</div>
+        <div style="display:flex; gap:1rem;">
+            <button type="button" onclick="openImportModalReceitas()" class="btn-import">
+                <span>📤</span>
+                Importar Receitas
+            </button>
+            <button type="button" onclick="openImportModalDespesas()" class="btn-import">
+                <span>📥</span>
+                Importar Despesas
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mensagens -->
+    {% if messages %}
+    <div style="max-width: 1400px; margin: 1rem auto; padding: 0 2rem;">
+        {% for m in messages %}
+        <div style="background:#fff; border-radius:12px; padding:1rem; margin-bottom:.5rem; box-shadow:0 4px 15px rgba(0,0,0,.05);">
+            {{ m }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Container Principal -->
+    <div class="container">
+        <div>
+            <h1 class="page-title">
+                {% if tab == "despesas" %}
+                    Gestão de Despesas
+                {% else %}
+                    Gestão de Receitas
+                {% endif %}
+            </h1>
+            <p class="page-subtitle">
+                {% if tab == "despesas" %}
+                    Visualize e gerencie todas as suas despesas
+                {% else %}
+                    Visualize e gerencie todas as suas receitas
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters-section">
+            <h2 class="filters-title">Filtros de Busca</h2>
+            <form method="GET" id="filterForm">
+                <input type="hidden" name="tab" value="{% if tab == 'despesas' %}despesas{% else %}receitas{% endif %}">
+                
+                {% if tab == "despesas" %}
+                    <!-- Filtros para Despesas -->
+                    <div class="filters-grid">
+                        <div>
+                            <label class="filter-label">Condomínio</label>
+                            <input type="text" name="condominio" class="filter-input" placeholder="Nome do condomínio" value="{{ request.GET.condominio }}">
+                        </div>
+                        <div>
+                            <label class="filter-label">Data Inicial (Vencimento)</label>
+                            <input type="date" name="data_vencimento_inicial" class="filter-input" value="{{ request.GET.data_vencimento_inicial }}">
+                        </div>
+                        <div>
+                            <label class="filter-label">Data Final (Vencimento)</label>
+                            <input type="date" name="data_vencimento_final" class="filter-input" value="{{ request.GET.data_vencimento_final }}">
+                        </div>
+                        <div>
+                            <label class="filter-label">Data Inicial (Liquidação)</label>
+                            <input type="date" name="data_liquidacao_inicial" class="filter-input" value="{{ request.GET.data_liquidacao_inicial }}">
+                        </div>
+                        <div>
+                            <label class="filter-label">Data Final (Liquidação)</label>
+                            <input type="date" name="data_liquidacao_final" class="filter-input" value="{{ request.GET.data_liquidacao_final }}">
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Filtros para Receitas -->
+                    <div class="filters-grid">
+                        <div>
+                            <label class="filter-label">Cliente</label>
+                            <input type="text" name="cliente" class="filter-input" placeholder="Nome do cliente" value="{{ request.GET.cliente }}">
+                        </div>
+                        <div>
+                            <label class="filter-label">Status</label>
+                            <select name="status" class="filter-select">
+                                <option value="">Todos</option>
+                                <option value="pago" {% if request.GET.status == 'pago' %}selected{% endif %}>Pago</option>
+                                <option value="pendente" {% if request.GET.status == 'pendente' %}selected{% endif %}>Pendente</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="filter-label">Data Inicial (Vencimento)</label>
+                            <input type="date" name="data_vencimento_inicial" class="filter-input" value="{{ request.GET.data_vencimento_inicial }}">
+                        </div>
+                        <div>
+                            <label class="filter-label">Data Final (Vencimento)</label>
+                            <input type="date" name="data_vencimento_final" class="filter-input" value="{{ request.GET.data_vencimento_final }}">
+                        </div>
+                        <div>
+                            <label class="filter-label">Data Inicial (Liquidação)</label>
+                            <input type="date" name="data_liquidacao_inicial" class="filter-input" value="{{ request.GET.data_liquidacao_inicial }}">
+                        </div>
+                        <div>
+                            <label class="filter-label">Data Final (Liquidação)</label>
+                            <input type="date" name="data_liquidacao_final" class="filter-input" value="{{ request.GET.data_liquidacao_final }}">
+                        </div>
+                    </div>
+                {% endif %}
+                
+                <div class="filter-actions">
+                    <button type="button" class="btn-filter btn-clear" onclick="clearFilters()">✕ Limpar</button>
+                    <button type="submit" class="btn-filter btn-apply">✓ Aplicar Filtros</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Tabela -->
+        <div class="table-section">
+            <div class="table-header">
+                <h2>
+                    {% if tab == "despesas" %}
+                        Despesas Cadastradas
+                    {% else %}
+                        Receitas Cadastradas
+                    {% endif %}
+                </h2>
+
+                <div style="display:flex; gap:1rem; align-items:center;">
+                    <a class="btn-import {% if tab != 'despesas' %}active{% endif %}"
+                       href="javascript:void(0)" onclick="switchTab('receitas')">
+                        <span>📤</span> Receitas
+                    </a>
+
+                    <a class="btn-import {% if tab == 'despesas' %}active{% endif %}"
+                       href="javascript:void(0)" onclick="switchTab('despesas')">
+                        <span>📥</span> Despesas
+                    </a>
+
+                    <div class="search-wrapper">
+                        <input type="text" id="searchInput" class="search-input" placeholder="Buscar...">
+                    </div>
+                </div>
+            </div>
+
+            {% if tab == "receitas" or not tab %}
+                {% if receitas %}
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Condomínio</th>
+                                    <th>Unidade</th>
+                                    <th>Cliente</th>
+                                    <th>Descrição</th>
+                                    <th>Cobrança</th>
+                                    <th>Valor</th>
+                                    <th>Vencimento</th>
+                                    <th>Liquidação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                {% for linha in linhas %}
+                                    {% if linha.tipo == "item" %}
+                                    {% with r=linha.obj %}
+                                    <tr>
+                                        <td>{{ r.NomeCondominio }}</td>
+                                        <td>{{ r.Unidade }}</td>
+                                        <td>{{ r.Contato }}</td>
+                                        <td>{{ r.DescricaoTaxa }}</td>
+                                        <td>{{ r.Cobranca }}</td>
+                                        <td>R$ {{ r.Valor|floatformat:2 }}</td>
+                                        <td>{{ r.Vencimento|date:"d/m/Y" }}</td>
+                                        <td>{% if r.Liquidacao %}{{ r.Liquidacao|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                                    </tr>
+                                    {% endwith %}
+
+                                    {% elif linha.tipo == "subtotal" %}
+                                    <tr class="subtotal-row">
+                                        <td colspan="4"><strong>Total Cobrança {{ linha.cobranca }}</strong></td>
+                                        <td><strong>{{ linha.cobranca }}</strong></td>
+                                        <td><strong>R$ {{ linha.subtotal|floatformat:2 }}</strong></td>
+                                        <td colspan="2"></td>
+                                    </tr>
+
+                                    {% elif linha.tipo == "spacer" %}
+                                    <tr class="spacer-row">
+                                        <td colspan="8"></td>
+                                    </tr>
+                                    {% endif %}
+                                {% endfor %}
+</tbody>
+                        </table>
+
+                        {% if page_obj %}
+                        <div style="display:flex; gap:.75rem; justify-content:flex-end; align-items:center; padding: 1rem 2rem; background: var(--light); border-top: 1px solid var(--border);">
+                            <span style="color: var(--gray);">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                            {% if page_obj.has_previous %}
+                            <a class="btn-filter btn-clear" href="?tab=receitas{% if base_qs %}&{{ base_qs }}{% endif %}&page={{ page_obj.previous_page_number }}">← Anterior</a>
+                            {% endif %}
+                            {% if page_obj.has_next %}
+                            <a class="btn-filter btn-apply" href="?tab=receitas{% if base_qs %}&{{ base_qs }}{% endif %}&page={{ page_obj.next_page_number }}">Próxima →</a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <div style="font-size: 4rem; opacity: 0.3;">📊</div>
+                        <p style="color: var(--gray);">Nenhuma receita encontrada. Importe uma planilha para começar.</p>
+                    </div>
+                {% endif %}
+
+            {% else %}
+                {% if despesas %}
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Condomínio</th>
+                                    <th>Vencimento</th>
+                                    <th>Liquidação</th>
+                                    <th>Fornecedor</th>
+                                    <th>Categoria</th>
+                                    <th>Documento</th>
+                                    <th>Forma Pagto</th>
+                                    <th>Valor</th>
+                                    <th>Complemento</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                {% for d in despesas %}
+                                <tr>
+                                    <td>{{ d.Condominio }}</td>
+                                    <td>{{ d.Vencimento|date:"d/m/Y" }}</td>
+                                    <td>{% if d.Liquidacao %}{{ d.Liquidacao|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                                    <td>{{ d.Fornecedor }}</td>
+                                    <td>{{ d.Categoria }}</td>
+                                    <td>{{ d.Documento }}</td>
+                                    <td>{% if d.FormaPagamento %}{{ d.FormaPagamento }}{% else %}-{% endif %}</td>
+                                    <td>R$ {{ d.Valor|floatformat:2 }}</td>
+                                    <td>{% if d.Complemento %}{{ d.Complemento }}{% else %}-{% endif %}</td>
+
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                        {% if page_obj %}
+                        <div style="display:flex; gap:.75rem; justify-content:flex-end; align-items:center; padding: 1rem 2rem; background: var(--light); border-top: 1px solid var(--border);">
+                            <span style="color: var(--gray);">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                            {% if page_obj.has_previous %}
+                            <a class="btn-filter btn-clear" href="?tab=despesas{% if base_qs %}&{{ base_qs }}{% endif %}&page={{ page_obj.previous_page_number }}">← Anterior</a>
+                            {% endif %}
+                            {% if page_obj.has_next %}
+                            <a class="btn-filter btn-apply" href="?tab=despesas{% if base_qs %}&{{ base_qs }}{% endif %}&page={{ page_obj.next_page_number }}">Próxima →</a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <div style="font-size: 4rem; opacity: 0.3;">📉</div>
+                        <p style="color: var(--gray);">Nenhuma despesa encontrada. Importe uma planilha para começar.</p>
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Garante que sempre haja um tab na URL
+        (function() {
+            const currentUrl = new URL(window.location.href);
+            if (!currentUrl.searchParams.has('tab')) {
+                currentUrl.searchParams.set('tab', 'receitas');
+                window.history.replaceState({}, '', currentUrl.toString());
+            }
+        })();
+
+        // Função para alternar entre tabs preservando os filtros
+        function switchTab(tab) {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('tab', tab);
+            currentUrl.searchParams.delete('page'); // Remove paginação ao trocar de tab
+            window.location.href = currentUrl.toString();
+        }
+
+        // Modal de Receitas
+        function openImportModalReceitas() {
+            document.getElementById('importModal').classList.add('active');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('importModal');
+            modal.classList.remove('active');
+            const form = document.getElementById('importForm');
+            if (form) form.reset();
+            const preview = document.getElementById('filePreview');
+            const upload = document.getElementById('uploadArea');
+            if (preview) preview.style.display = 'none';
+            if (upload) upload.style.display = 'block';
+        }
+
+        document.getElementById('importModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        const fileInput = document.getElementById('fileInput');
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files.length > 0) {
+                    const file = this.files[0];
+                    document.getElementById('fileName').textContent = file.name;
+                    document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(2) + ' KB';
+                    document.getElementById('uploadArea').style.display = 'none';
+                    document.getElementById('filePreview').style.display = 'flex';
+                }
+            });
+        }
+
+        function removeFile() {
+            document.getElementById('fileInput').value = '';
+            document.getElementById('filePreview').style.display = 'none';
+            document.getElementById('uploadArea').style.display = 'block';
+        }
+
+        // Modal de Despesas
+        function openImportModalDespesas() {
+            document.getElementById('importModalDespesas').classList.add('active');
+        }
+
+        function closeModalDespesas() {
+            const modal = document.getElementById('importModalDespesas');
+            modal.classList.remove('active');
+            const form = document.getElementById('importFormDespesas');
+            if (form) form.reset();
+            const preview = document.getElementById('filePreviewDespesas');
+            if (preview) preview.style.display = 'none';
+        }
+
+        document.getElementById('importModalDespesas').addEventListener('click', function(e) {
+            if (e.target === this) closeModalDespesas();
+        });
+
+        const fileInputDespesas = document.getElementById('fileInputDespesas');
+        if (fileInputDespesas) {
+            fileInputDespesas.addEventListener('change', function() {
+                if (this.files && this.files.length > 0) {
+                    const file = this.files[0];
+                    document.getElementById('fileNameDespesas').textContent = file.name;
+                    document.getElementById('fileSizeDespesas').textContent = (file.size / 1024).toFixed(2) + ' KB';
+                    document.getElementById('filePreviewDespesas').style.display = 'flex';
+                }
+            });
+        }
+
+        function removeFileDespesas() {
+            document.getElementById('fileInputDespesas').value = '';
+            document.getElementById('filePreviewDespesas').style.display = 'none';
+        }
+
+        // Filtros
+        function clearFilters() {
+            const currentTab = new URLSearchParams(window.location.search).get('tab') || 'receitas';
+            window.location.href = window.location.pathname + '?tab=' + currentTab;
+        }
+
+        // Busca na tabela
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function(e) {
+                const term = e.target.value.toLowerCase();
+                document.querySelectorAll('#tableBody tr').forEach(row => {
+                    row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+                });
+            });
+        }
+    </script>
+</body>
+</html>
