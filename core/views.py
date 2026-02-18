@@ -655,21 +655,18 @@ class ImportarXlsxDespesasView(View):
     def get(self, request):
         return redirect("/dashboard/?tab=despesas")
 
-
 import os
 from django.http import JsonResponse, HttpResponseForbidden
 from django.contrib.auth import get_user_model
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods
 
-@require_POST
+@require_http_methods(["GET", "POST"])
 def bootstrap_admin(request):
-    # Proteção por token (setar no Railpack)
     token = request.headers.get("X-ADMIN-TOKEN") or request.GET.get("token")
     if not token or token != os.getenv("ADMIN_BOOTSTRAP_TOKEN"):
         return HttpResponseForbidden("forbidden")
 
     User = get_user_model()
-
     username = os.getenv("ADMIN_USERNAME", "admin")
     email = os.getenv("ADMIN_EMAIL", "admin@example.com")
     password = os.getenv("ADMIN_PASSWORD")
@@ -682,14 +679,10 @@ def bootstrap_admin(request):
         defaults={"email": email, "is_staff": True, "is_superuser": True},
     )
 
-    if created:
-        user.set_password(password)
-        user.save()
-        return JsonResponse({"ok": True, "created": True, "username": username})
-
     user.is_staff = True
     user.is_superuser = True
     user.email = email
     user.set_password(password)
     user.save()
-    return JsonResponse({"ok": True, "created": False, "username": username})
+
+    return JsonResponse({"ok": True, "created": created, "username": username})
