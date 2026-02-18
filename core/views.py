@@ -10,11 +10,29 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 import re
 import openpyxl
-
+import logging
+import sys
+import time
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
+import re
+import openpyxl
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.views import View
 from .models import Receitas, Despesas
+import logging
+
+logger = logging.getLogger("importacao")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter("[%(levelname)s] %(asctime)s %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 
-# View Login User
+
 def login_usuario(request):
     if request.method == "POST":
         email = request.POST.get("email")
@@ -121,15 +139,9 @@ def normalize_header(s: str) -> str:
 
 
 def detect_condominio(texto):
-    """
-    Aceita SOMENTE o padrão do relatório:
-    '078A Basualdo (6)'  -> retorna 'Basualdo'
-    Qualquer outra coisa retorna None (evita capturar datas e textos da tabela)
-    """
     if texto is None:
         return None
 
-    # nunca tratar datas como condomínio
     if isinstance(texto, (datetime, )):
         return None
     if hasattr(texto, "year") and hasattr(texto, "month") and hasattr(texto, "day"):
@@ -139,7 +151,6 @@ def detect_condominio(texto):
     if not s:
         return None
 
-    # precisa ter "(numero)" no final, senão não é cabeçalho de condomínio
     if "(" not in s or ")" not in s:
         return None
 
@@ -150,7 +161,6 @@ def detect_condominio(texto):
         return None
 
     return m.group(1).strip()
-
 
 
 class DashboardView(View):
@@ -362,58 +372,246 @@ class DashboardView(View):
 class ImportarXlsxReceitasView(View):
     def post(self, request):
         arquivo = request.FILES.get("arquivo")
+        logger.info("IMPORT RECEITAS: request recebido. arquivo=%s", getattr(arquivo, "name", None))
 
         if not arquivo:
             messages.error(request, "❌ Nenhum arquivo selecionado")
-            return redirect("dashboard_receitas")
+            return redirect("/dashboard/?tab=receitas")
 
         if not arquivo.name.endswith((".xlsx", ".xls")):
-            messages.error(request, "❌ Formato de arquivo inválido. Use XLSX ou XLS")
-            return redirect("dashboard_receitas")
+            messages.error(request, "❌ Formato inválido. Use XLSX ou XLS")
+            return redirect("/dashboard/?tab=receitas")
 
         try:
-            workbook = openpyxl.load_workbook(arquivo)
-            sheet = workbook.active
+            wb = openpyxl.load_workbook(arquivo, data_only=True)
+            sheet = wb.active
 
             receitas_importadas = 0
             receitas_atualizadas = 0
             erros = []
 
-            for row_num, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
-                try:
-                    nome_condominio = row[0]
-                    unidade = row[1]
-                    contato = row[2]
-                    descricao_taxa = row[3]
-                    cobranca = row[4]
-                    valor = row[5]
-                    vencimento = row[6]
-                    liquidacao = row[7] if len(row) > 7 else None
+            # Mapeia headers -> "chaves internas"
+            aliases = {
+                "id condominio": "idcondominio",
+                "id condomínio": "idcondominio",
 
-                    if not nome_condominio or not unidade or valor in (None, "") or not vencimento:
-                        erros.append(f"Linha {row_num}: Campos obrigatórios faltando")
+                "condominio": "nomecondominio",
+                "condomínio": "nomecondominio",
+
+                "unidade": "unidade",
+                "contato": "contato",
+
+                "cobranca": "cobranca",
+                "cobrança": "cobranca",
+
+                "descricao": "descricaotaxa",
+                "descrição": "descricaotaxa",
+
+                "complemento": "complemento",
+
+                "geracao": "geracao",
+                "geração": "geracao",
+
+                "vencimento": "vencimento",
+
+                "liquidacao": "liquidacao",
+                "liquidação": "liquidacao",
+
+                "credito": "credito",
+                "crédito": "credito",
+
+                "forma pagamento": "formapagamento",
+                "forma de pagamento": "formapagamento",
+
+                "valor": "valor",
+            }
+
+            required = {"idcondominio", "nomecondominio", "unidade", "cobranca", "descricaotaxa", "valor", "vencimento", "geracao"}
+
+            def is_row_empty(row):
+                for v in row:
+                    if v is None:
+                        continue
+                    if str(v).strip() != "":
+                        return False
+                return True
+
+            def normalize_header(s: str) -> str:
+                if s is None:
+                    return ""
+                s = str(s).strip().lower()
+                s = s.replace("á", "a").replace("à", "a").replace("ã", "a").replace("â", "a")
+                s = s.replace("é", "e").replace("ê", "e")
+                s = s.replace("í", "i")
+                s = s.replace("ó", "o").replace("ô", "o").replace("õ", "o")
+                s = s.replace("ú", "u")
+                s = s.replace("ç", "c")
+                s = " ".join(s.split())
+                s = s.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+                s = "".join(s.split())  # remove todos espaços
+                return s
+
+            def to_date(v):
+                if v is None or v == "":
+                    return None
+                if isinstance(v, datetime):
+                    return v.date()
+                if hasattr(v, "year") and hasattr(v, "month") and hasattr(v, "day"):
+                    return v
+                s = str(v).strip()
+                for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+                    try:
+                        return datetime.strptime(s, fmt).date()
+                    except ValueError:
+                        pass
+                raise ValueError(f"Data inválida: {v}")
+
+            from decimal import Decimal, InvalidOperation
+            import re
+
+            def to_decimal(v):
+                if v is None:
+                    return Decimal("0.00")
+                if isinstance(v, Decimal):
+                    return v
+                if isinstance(v, (int, float)):
+                    return Decimal(str(v))
+                s = str(v).strip()
+                if s == "" or s.lower() in {"-", "—", "null", "none", "nan"}:
+                    return Decimal("0.00")
+                s = s.replace("R$", "").replace("\u00a0", " ").strip()
+                neg = False
+                if s.startswith("(") and s.endswith(")"):
+                    neg = True
+                    s = s[1:-1].strip()
+                s = re.sub(r"[^0-9,.\-]", "", s)
+                if "," in s and "." in s:
+                    if s.rfind(",") > s.rfind("."):
+                        s = s.replace(".", "").replace(",", ".")
+                    else:
+                        s = s.replace(",", "")
+                else:
+                    if "," in s:
+                        s = s.replace(".", "").replace(",", ".")
+                try:
+                    val = Decimal(s)
+                    return -val if neg else val
+                except (InvalidOperation, ValueError):
+                    raise ValueError(f"Valor inválido: {v} (normalizado: {s})")
+
+            def build_header_map(row):
+                m = {}
+                for idx, col in enumerate(row):
+                    key = normalize_header(col)
+                    if not key:
+                        continue
+                    for k, internal in aliases.items():
+                        nk = normalize_header(k)
+                        if nk and nk in key:
+                            m[internal] = idx
+                            break
+                if not required.issubset(set(m.keys())):
+                    return None
+                return m
+
+            def safe_get(row, header_map, field):
+                idx = header_map.get(field)
+                if idx is None or idx >= len(row):
+                    return None
+                return row[idx]
+
+            # acha header nas primeiras 60 linhas
+            header_map = None
+            header_row_num = None
+            for rn, raw in enumerate(sheet.iter_rows(min_row=1, max_row=60, values_only=True), start=1):
+                row = list(raw)
+                if is_row_empty(row):
+                    continue
+                hm = build_header_map(row)
+                if hm:
+                    header_map = hm
+                    header_row_num = rn
+                    break
+
+            if header_map is None:
+                logger.error("IMPORT RECEITAS: não encontrei header. primeiras linhas não bateram required=%s", required)
+                messages.error(request, "❌ Não encontrei o cabeçalho de Receitas (Id Condomínio, Condomínio, Unidade, Cobrança, Descrição, Geração, Vencimento, Valor).")
+                return redirect("/dashboard/?tab=receitas")
+
+            logger.info("IMPORT RECEITAS: header encontrado na linha %s. header_map=%s", header_row_num, header_map)
+
+            for row_num, raw_row in enumerate(sheet.iter_rows(min_row=header_row_num + 1, values_only=True), start=header_row_num + 1):
+                row = list(raw_row)
+                if is_row_empty(row):
+                    continue
+
+                try:
+                    id_condominio = safe_get(row, header_map, "idcondominio")
+                    nome_condominio = safe_get(row, header_map, "nomecondominio")
+                    unidade = safe_get(row, header_map, "unidade")
+                    contato = safe_get(row, header_map, "contato")
+                    cobranca = safe_get(row, header_map, "cobranca")
+                    descricao = safe_get(row, header_map, "descricaotaxa")
+                    complemento = safe_get(row, header_map, "complemento")
+                    geracao = safe_get(row, header_map, "geracao")
+                    vencimento = safe_get(row, header_map, "vencimento")
+                    liquidacao = safe_get(row, header_map, "liquidacao")
+                    credito = safe_get(row, header_map, "credito")
+                    formapagamento = safe_get(row, header_map, "formapagamento")
+                    valor = safe_get(row, header_map, "valor")
+
+                    # valida obrigatórios
+                    faltando = []
+                    if id_condominio in (None, ""): faltando.append("IdCondominio")
+                    if nome_condominio in (None, ""): faltando.append("Condominio")
+                    if unidade in (None, ""): faltando.append("Unidade")
+                    if cobranca in (None, ""): faltando.append("Cobranca")
+                    if descricao in (None, ""): faltando.append("Descricao")
+                    if geracao in (None, ""): faltando.append("Geracao")
+                    if vencimento in (None, ""): faltando.append("Vencimento")
+                    if valor in (None, ""): faltando.append("Valor")
+
+                    if faltando:
+                        erros.append(f"Linha {row_num}: faltando {', '.join(faltando)}")
                         continue
 
-                    vencimento = to_date(vencimento)
+                    id_condominio_int = int(id_condominio)
+                    venc_date = to_date(vencimento)
 
-                    if liquidacao not in (None, ""):
-                        liquidacao = to_date(liquidacao)
-                    else:
-                        liquidacao = None
+                    # ✅ GARANTE GERACAO NÃO NULA
+                    try:
+                        ger_date = to_date(geracao)
+                    except Exception:
+                        ger_date = venc_date  # fallback
 
+                    liq_date = to_date(liquidacao) if liquidacao not in (None, "") else None
                     valor_dec = to_decimal(valor)
 
+                    # payload com nomes do MODEL (provável que sejam com maiúsculas)
+                    defaults = {
+                        "NomeCondominio": str(nome_condominio).strip(),
+                        "Contato": str(contato).strip() if contato not in (None, "") else "",
+                        "Complemento": str(complemento).strip() if complemento not in (None, "") else None,
+                        "Geracao": ger_date,  # ✅
+                        "Liquidacao": liq_date,
+                        "Credito": to_date(credito) if credito not in (None, "") else None,
+                        "FormaPagamento": str(formapagamento).strip() if formapagamento not in (None, "") else None,
+                        "Valor": valor_dec,
+                    }
+
+                    logger.info(
+                        "IMPORT RECEITAS: linha=%s id_cond=%s unidade=%s cobranca=%s desc=%s geracao=%s venc=%s valor=%s",
+                        row_num, id_condominio_int, str(unidade).strip(), cobranca, str(descricao).strip(), ger_date, venc_date, valor_dec
+                    )
+
+                    # LOOKUP: usa campos que identificam unicamente o lançamento
                     receita, created = Receitas.objects.update_or_create(
-                        NomeCondominio=str(nome_condominio).strip(),
+                        IdCondominio=id_condominio_int,
                         Unidade=str(unidade).strip(),
-                        Vencimento=vencimento,
-                        defaults={
-                            "Contato": str(contato).strip() if contato else "",
-                            "DescricaoTaxa": str(descricao_taxa).strip() if descricao_taxa else "",
-                            "Cobranca": int(cobranca) if cobranca not in (None, "") else 0,
-                            "Valor": valor_dec,
-                            "Liquidacao": liquidacao,
-                        }
+                        Cobranca=int(cobranca) if cobranca not in (None, "") else 0,
+                        DescricaoTaxa=str(descricao).strip(),
+                        Vencimento=venc_date,
+                        defaults=defaults
                     )
 
                     if created:
@@ -422,22 +620,25 @@ class ImportarXlsxReceitasView(View):
                         receitas_atualizadas += 1
 
                 except Exception as e:
+                    logger.exception("IMPORT RECEITAS: erro na linha %s | row=%s", row_num, row)
                     erros.append(f"Linha {row_num}: {str(e)}")
 
-            if receitas_importadas:
-                messages.success(request, f"✅ {receitas_importadas} receita(s) importada(s) com sucesso")
+            logger.info("IMPORT RECEITAS: fim. importadas=%s atualizadas=%s erros=%s",
+                        receitas_importadas, receitas_atualizadas, len(erros))
 
+            if receitas_importadas:
+                messages.success(request, f"✅ {receitas_importadas} receita(s) importada(s)")
             if receitas_atualizadas:
                 messages.info(request, f"ℹ️ {receitas_atualizadas} receita(s) atualizada(s)")
-
             if erros:
-                for erro in erros[:8]:
+                for erro in erros[:12]:
                     messages.warning(request, f"⚠️ {erro}")
-                if len(erros) > 8:
-                    messages.warning(request, f"⚠️ ... e mais {len(erros) - 8} erro(s)")
+                if len(erros) > 12:
+                    messages.warning(request, f"⚠️ ... e mais {len(erros) - 12} erro(s)")
 
         except Exception as e:
-            messages.error(request, f"❌ Erro ao processar arquivo: {str(e)}")
+            logger.exception("IMPORT RECEITAS: erro geral")
+            messages.error(request, f"❌ Erro ao processar: {str(e)}")
 
         return redirect("/dashboard/?tab=receitas")
 
