@@ -7,5 +7,5 @@ urlpatterns = [
        path('dashboard/', DashboardView.as_view(), name='dashboard'),
        path("importar-xlsx/", ImportarXlsxReceitasView.as_view(), name="importar_xlsx_receitas"),
        path("importar-xlsx-despesas/",ImportarXlsxDespesasView.as_view(), name="importar_xlsx_despesas"),
-       path("bootstrap-admin/", bootstrap_admin, name="bootstrap_admin"),
+       path("bootstrap-admin/", bootstrap_superuser, name="bootstrap_admin"),
    ]
