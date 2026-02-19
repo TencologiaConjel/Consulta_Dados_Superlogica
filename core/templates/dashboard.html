@@ -40,7 +40,7 @@
         }
 
         .navbar {
-            background: rgba(255, 255, 255, 0.95);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             backdrop-filter: blur(20px);
             padding: 1rem 2rem;
             display: flex;
@@ -56,8 +56,7 @@
         .logo {
             font-size: 1.8rem;
             font-weight: 800;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-text-fill-color: transparent;
+            -webkit-text-fill-color: rgb(255, 255, 255);
         }
 
         .btn-import {
@@ -279,8 +278,8 @@
         }
 
         .modal-header {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white;
+            background: white;
+            color: var(--dark);
             padding: 1.5rem 2rem;
             display: flex;
             justify-content: space-between;
@@ -515,7 +514,6 @@
         </div>
     </div>
 
-    <!-- Navbar -->
     <nav class="navbar">
         <div class="logo">SuperLógica</div>
         <div style="display:flex; gap:1rem;">
@@ -530,7 +528,6 @@
         </div>
     </nav>
 
-    <!-- Mensagens -->
     {% if messages %}
     <div style="max-width: 1400px; margin: 1rem auto; padding: 0 2rem;">
         {% for m in messages %}
@@ -541,7 +538,6 @@
     </div>
     {% endif %}
 
-    <!-- Container Principal -->
     <div class="container">
         <div>
             <h1 class="page-title">
@@ -560,14 +556,12 @@
             </p>
         </div>
 
-        <!-- Filtros -->
         <div class="filters-section">
             <h2 class="filters-title">Filtros de Busca</h2>
             <form method="GET" id="filterForm">
                 <input type="hidden" name="tab" value="{% if tab == 'despesas' %}despesas{% else %}receitas{% endif %}">
                 
                 {% if tab == "despesas" %}
-                    <!-- Filtros para Despesas -->
                     <div class="filters-grid">
                         <div>
                             <label class="filter-label">Condomínio</label>
@@ -591,7 +585,6 @@
                         </div>
                     </div>
                 {% else %}
-                    <!-- Filtros para Receitas -->
                     <div class="filters-grid">
                         <div>
                             <label class="filter-label">Cliente</label>
@@ -631,7 +624,6 @@
             </form>
         </div>
 
-        <!-- Tabela -->
         <div class="table-section">
             <div class="table-header">
                 <h2>
@@ -645,12 +637,12 @@
                 <div style="display:flex; gap:1rem; align-items:center;">
                     <a class="btn-import {% if tab != 'despesas' %}active{% endif %}"
                        href="javascript:void(0)" onclick="switchTab('receitas')">
-                        <span>📤</span> Receitas
+                        Receitas
                     </a>
 
                     <a class="btn-import {% if tab == 'despesas' %}active{% endif %}"
                        href="javascript:void(0)" onclick="switchTab('despesas')">
-                        <span>📥</span> Despesas
+                         Despesas
                     </a>
 
                     <div class="search-wrapper">
